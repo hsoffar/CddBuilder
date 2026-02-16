@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "requiredOutputs": [
+    "src/{device}_driver_stub.c",
+    "docs/{device}_cdd_outline.md",
+    "tests/{device}_test_plan.md",
+    "report/summary.md",
+    "report/prompt.md",
+    "report/validation.json"
+  ],
+  "notes": "{device} is lowercase normalized device name"
+}
