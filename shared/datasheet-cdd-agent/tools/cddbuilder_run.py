@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Protocol
+from typing import List
+
+from cddbuilder_adapters import select_adapter
 
 
 @dataclass
@@ -17,36 +18,6 @@ class PromptSections:
     constraints: str
     outputs: str
     acceptance: str
-
-
-class LlmAdapter(Protocol):
-    def generate(self, prompt: str) -> str:
-        ...
-
-
-class StubLlmAdapter:
-    def generate(self, prompt: str) -> str:
-        return (
-            "LLM_DISABLED_OR_STUB\n"
-            "This is a deterministic placeholder output.\n"
-            f"Prompt length: {len(prompt)} chars\n"
-        )
-
-
-class EchoOpenAiAdapter:
-    """Placeholder working adapter path: uses env key presence and returns deterministic echo."""
-
-    def __init__(self) -> None:
-        self.api_key_present = bool(os.getenv("OPENAI_API_KEY"))
-
-    def generate(self, prompt: str) -> str:
-        if not self.api_key_present:
-            return "OPENAI_ADAPTER_DISABLED: OPENAI_API_KEY not set"
-        return (
-            "OPENAI_ADAPTER_PLACEHOLDER\n"
-            "Provider wiring acknowledged (network call intentionally deferred in v1).\n"
-            f"Prompt checksum basis length={len(prompt)}\n"
-        )
 
 
 def _read_text(path: Path) -> str:
@@ -188,14 +159,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _select_adapter(adapter_name: str, dry_run: bool) -> LlmAdapter:
-    if dry_run:
-        return StubLlmAdapter()
-    if adapter_name == "openai":
-        return EchoOpenAiAdapter()
-    return StubLlmAdapter()
-
-
 def main() -> int:
     args = parse_args()
 
@@ -210,7 +173,7 @@ def main() -> int:
     sections = assemble_sections(profile_md, rules_md_list, args.device, args.pdf)
     prompt = build_prompt(sections)
 
-    adapter = _select_adapter(args.adapter, args.dry_run)
+    adapter = select_adapter(args.adapter, args.dry_run)
     llm_text = adapter.generate(prompt)
 
     device_slug = _normalize_device(args.device)
