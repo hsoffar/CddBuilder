@@ -7,7 +7,7 @@ import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import Any, List
 
 from cddbuilder_adapters import select_adapter
 
@@ -112,32 +112,72 @@ def write_output_package(out_dir: Path, device_slug: str, prompt: str, llm_text:
 
 def _required_from_checklist(checklist_path: Path, device_slug: str) -> List[Path]:
     payload = json.loads(_read_text(checklist_path))
-    required = payload.get("requiredOutputs", [])
+    required = payload.get("requiredOutputs")
+    if not isinstance(required, list) or not required:
+        raise ValueError("requiredOutputs must be a non-empty list")
     return [Path(item.replace("{device}", device_slug)) for item in required]
 
 
-def run_validation(out_dir: Path, device_slug: str, checklist_path: Path) -> dict:
-    required_rel = _required_from_checklist(checklist_path, device_slug)
-    required = [out_dir / rel for rel in required_rel]
-
+def run_validation(out_dir: Path, device_slug: str, checklist_path: Path) -> dict[str, Any]:
     validation_path = out_dir / "report" / "validation.json"
     validation_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Compute missing excluding validation artifact itself, then write validation,
-    # then include final check to keep gate deterministic.
-    missing = [str(p) for p in required if (p != validation_path and not p.exists())]
+    failure_reasons: list[dict[str, str]] = []
+    missing: list[str] = []
+
+    try:
+        required_rel = _required_from_checklist(checklist_path, device_slug)
+    except Exception as exc:
+        result = {
+            "pass": False,
+            "missing": [],
+            "requiredCount": 0,
+            "checklist": str(checklist_path),
+            "failureReasons": [
+                {
+                    "code": "CHECKLIST_PARSE_ERROR",
+                    "detail": str(exc),
+                    "path": str(checklist_path),
+                }
+            ],
+        }
+        validation_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        return result
+
+    required = [out_dir / rel for rel in required_rel]
+
+    for required_path in required:
+        if required_path == validation_path:
+            continue
+        if not required_path.exists():
+            missing.append(str(required_path))
+            failure_reasons.append(
+                {
+                    "code": "MISSING_REQUIRED_OUTPUT",
+                    "detail": "required artifact not generated",
+                    "path": str(required_path),
+                }
+            )
 
     result = {
         "pass": len(missing) == 0,
         "missing": missing,
         "requiredCount": len(required),
         "checklist": str(checklist_path),
+        "failureReasons": failure_reasons,
     }
     validation_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
     if validation_path in required and not validation_path.exists():
         result["pass"] = False
         result["missing"].append(str(validation_path))
+        result["failureReasons"].append(
+            {
+                "code": "VALIDATION_WRITE_FAILED",
+                "detail": "validation artifact is required but was not written",
+                "path": str(validation_path),
+            }
+        )
 
     return result
 
