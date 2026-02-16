@@ -103,7 +103,7 @@ void Tmp102_MainFunction(void)
   uint16 baseTickMs;
   uint32 nowMs;
   Dgf_I2cRead16RequestType readReq;
-  Dgf_BusResultType busResult;
+  Dgf_BusErrorType busError;
 
   if ((Tmp102_Runtime.Initialized == FALSE) || (Tmp102_Runtime.Cfg == NULL_PTR)) {
     Tmp102_ReportDet(TMP102_SID_MAINFUNCTION, TMP102_E_UNINIT);
@@ -129,7 +129,8 @@ void Tmp102_MainFunction(void)
   readReq.DeviceAddress = Tmp102_Runtime.Cfg->ChannelCfg->I2cAddress;
   readReq.RegisterAddress = TMP102_REG_TEMP;
   readReq.Data = &raw;
-  ret = Dgf_Bus_I2cRead16(&readReq, &busResult);
+  ret = Dgf_Bus_I2cRead16(&readReq, &busError);
+  (void)busError; /* reserved for normalized error-specific handling */
 
   nowMs = Dgf_Time_GetMonotonicMs();
   if (nowMs == 0u) {

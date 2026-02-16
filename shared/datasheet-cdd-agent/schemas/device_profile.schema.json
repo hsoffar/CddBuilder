@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/device_profile.schema.json",
+  "title": "Generic Device Profile",
+  "type": "object",
+  "required": [
+    "profileVersion",
+    "device",
+    "bus",
+    "registers",
+    "conversion",
+    "policies",
+    "capabilities"
+  ],
+  "properties": {
+    "profileVersion": {
+      "type": "string",
+      "pattern": "^v[0-9]+(\\.[0-9]+)?$"
+    },
+    "device": {
+      "type": "object",
+      "required": ["family", "name", "vendor", "datasheetRef"],
+      "properties": {
+        "family": { "type": "string" },
+        "name": { "type": "string" },
+        "vendor": { "type": "string" },
+        "datasheetRef": { "type": "string" },
+        "autosarBaseline": { "type": "string", "enum": ["4.3", "4.4"] }
+      },
+      "additionalProperties": false
+    },
+    "bus": {
+      "type": "object",
+      "required": ["protocol", "addressWidthBits", "registerWidthBits", "dataWidthBits"],
+      "properties": {
+        "protocol": { "type": "string", "enum": ["I2C", "SPI", "UART"] },
+        "addressWidthBits": { "type": "integer", "minimum": 7, "maximum": 16 },
+        "registerWidthBits": { "type": "integer", "minimum": 8, "maximum": 16 },
+        "dataWidthBits": { "type": "integer", "minimum": 8, "maximum": 32 }
+      },
+      "additionalProperties": false
+    },
+    "registers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "address", "access", "widthBits"],
+        "properties": {
+          "name": { "type": "string" },
+          "address": { "type": "integer", "minimum": 0, "maximum": 255 },
+          "access": { "type": "string", "enum": ["R", "W", "RW"] },
+          "widthBits": { "type": "integer", "minimum": 8, "maximum": 32 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "conversion": {
+      "type": "object",
+      "required": ["rawBits", "signed", "lsbMicroUnit", "unit"],
+      "properties": {
+        "rawBits": { "type": "integer", "minimum": 1, "maximum": 32 },
+        "signed": { "type": "boolean" },
+        "lsbMicroUnit": { "type": "integer", "minimum": 1 },
+        "unit": { "type": "string" },
+        "shiftRightBits": { "type": "integer", "minimum": 0, "maximum": 31 }
+      },
+      "additionalProperties": false
+    },
+    "policies": {
+      "type": "object",
+      "required": ["pollingMs", "retryBackoffMs", "staleTimeoutMs", "qualityDefault"],
+      "properties": {
+        "pollingMs": { "type": "integer", "minimum": 1 },
+        "retryBackoffMs": { "type": "integer", "minimum": 0 },
+        "staleTimeoutMs": { "type": "integer", "minimum": 1 },
+        "qualityDefault": { "type": "string", "enum": ["FRESH", "DEGRADED", "STALE", "INVALID"] }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["thresholds", "alertPin"],
+      "properties": {
+        "thresholds": { "type": "boolean" },
+        "alertPin": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

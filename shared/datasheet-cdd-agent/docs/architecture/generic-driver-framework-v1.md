@@ -67,6 +67,12 @@ Generator output must:
 - Keep MemMap/RTE/OS/BSW includes in integrator/adapter layers.
 - Use explicit port API extensions when new platform needs appear.
 
+## Locked Defaults (2026-02-16)
+- AUTOSAR baseline: 4.4 (with adapter-level 4.3 compatibility notes).
+- Diagnostics: DEV class -> DET, RUNTIME class -> DEM-capable path.
+- Canonical internal time unit: monotonic milliseconds.
+- Migration window: legacy per-device port shims remain for two milestones.
+
 ## TMP102 as Reference
 TMP102 demonstrates:
 - Device-specific conversion + polling policy in core module.
