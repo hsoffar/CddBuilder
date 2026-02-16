@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Protocol
@@ -29,6 +30,22 @@ class StubLlmAdapter:
             "LLM_DISABLED_OR_STUB\n"
             "This is a deterministic placeholder output.\n"
             f"Prompt length: {len(prompt)} chars\n"
+        )
+
+
+class EchoOpenAiAdapter:
+    """Placeholder working adapter path: uses env key presence and returns deterministic echo."""
+
+    def __init__(self) -> None:
+        self.api_key_present = bool(os.getenv("OPENAI_API_KEY"))
+
+    def generate(self, prompt: str) -> str:
+        if not self.api_key_present:
+            return "OPENAI_ADAPTER_DISABLED: OPENAI_API_KEY not set"
+        return (
+            "OPENAI_ADAPTER_PLACEHOLDER\n"
+            "Provider wiring acknowledged (network call intentionally deferred in v1).\n"
+            f"Prompt checksum basis length={len(prompt)}\n"
         )
 
 
@@ -122,20 +139,35 @@ def write_output_package(out_dir: Path, device_slug: str, prompt: str, llm_text:
     return list(paths.values())
 
 
-def run_validation(out_dir: Path, device_slug: str) -> dict:
-    required = [
-        out_dir / "src" / f"{device_slug}_driver_stub.c",
-        out_dir / "docs" / f"{device_slug}_cdd_outline.md",
-        out_dir / "tests" / f"{device_slug}_test_plan.md",
-        out_dir / "report" / "summary.md",
-        out_dir / "report" / "prompt.md",
-    ]
-    missing = [str(p) for p in required if not p.exists()]
-    result = {"pass": len(missing) == 0, "missing": missing}
+def _required_from_checklist(checklist_path: Path, device_slug: str) -> List[Path]:
+    payload = json.loads(_read_text(checklist_path))
+    required = payload.get("requiredOutputs", [])
+    return [Path(item.replace("{device}", device_slug)) for item in required]
+
+
+def run_validation(out_dir: Path, device_slug: str, checklist_path: Path) -> dict:
+    required_rel = _required_from_checklist(checklist_path, device_slug)
+    required = [out_dir / rel for rel in required_rel]
 
     validation_path = out_dir / "report" / "validation.json"
     validation_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Compute missing excluding validation artifact itself, then write validation,
+    # then include final check to keep gate deterministic.
+    missing = [str(p) for p in required if (p != validation_path and not p.exists())]
+
+    result = {
+        "pass": len(missing) == 0,
+        "missing": missing,
+        "requiredCount": len(required),
+        "checklist": str(checklist_path),
+    }
     validation_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    if validation_path in required and not validation_path.exists():
+        result["pass"] = False
+        result["missing"].append(str(validation_path))
+
     return result
 
 
@@ -146,8 +178,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rules", action="append", default=[], help="Path(s) to rules markdown")
     parser.add_argument("--out", required=True, help="Output directory")
     parser.add_argument("--device", required=True, help="Device name")
+    parser.add_argument("--adapter", default="stub", choices=["stub", "openai"], help="LLM adapter")
+    parser.add_argument(
+        "--checklist",
+        default="agents/cddbuilder/schema/output-checklist-v1.json",
+        help="Output checklist JSON path",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Enable deterministic dry-run mode")
     return parser.parse_args()
+
+
+def _select_adapter(adapter_name: str, dry_run: bool) -> LlmAdapter:
+    if dry_run:
+        return StubLlmAdapter()
+    if adapter_name == "openai":
+        return EchoOpenAiAdapter()
+    return StubLlmAdapter()
 
 
 def main() -> int:
@@ -156,6 +202,7 @@ def main() -> int:
     profile_path = Path(args.profile)
     rules_paths = [Path(p) for p in args.rules]
     out_dir = Path(args.out)
+    checklist_path = Path(args.checklist)
 
     profile_md = _read_text(profile_path)
     rules_md_list = [_read_text(p) for p in rules_paths]
@@ -163,14 +210,14 @@ def main() -> int:
     sections = assemble_sections(profile_md, rules_md_list, args.device, args.pdf)
     prompt = build_prompt(sections)
 
-    adapter: LlmAdapter = StubLlmAdapter()
+    adapter = _select_adapter(args.adapter, args.dry_run)
     llm_text = adapter.generate(prompt)
 
     device_slug = _normalize_device(args.device)
     write_output_package(out_dir, device_slug, prompt, llm_text)
-    validation = run_validation(out_dir, device_slug)
+    validation = run_validation(out_dir, device_slug, checklist_path)
 
-    print(json.dumps({"out": str(out_dir), "validation": validation}, indent=2))
+    print(json.dumps({"out": str(out_dir), "validation": validation, "adapter": args.adapter}, indent=2))
     return 0 if validation["pass"] else 1
 
 

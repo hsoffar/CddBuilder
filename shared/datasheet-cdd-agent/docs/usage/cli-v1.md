@@ -8,6 +8,8 @@ python3 tools/cddbuilder_run.py \
   --rules prompts/review-loop.md \
   --device TMP102 \
   --out out/tmp102 \
+  --adapter stub \
+  --checklist agents/cddbuilder/schema/output-checklist-v1.json \
   --dry-run
 ```
 
@@ -17,7 +19,9 @@ python3 tools/cddbuilder_run.py \
 - `--rules`: one or more rules markdown files
 - `--device`: device name
 - `--out`: output directory
-- `--dry-run`: deterministic local workflow
+- `--adapter`: adapter selector (`stub` or `openai` placeholder)
+- `--checklist`: output checklist JSON used by validation gate
+- `--dry-run`: deterministic local workflow (forces stub adapter)
 
 ## Outputs
 The command creates:
