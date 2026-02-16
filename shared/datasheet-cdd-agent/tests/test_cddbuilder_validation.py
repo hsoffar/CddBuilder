@@ -49,6 +49,7 @@ class ValidationChecklistTests(unittest.TestCase):
 
             self.assertTrue(result["pass"])
             self.assertEqual(result["missing"], [])
+            self.assertEqual(result["failureReasons"], [])
             self.assertTrue((out_dir / "report" / "validation.json").exists())
 
     def test_validation_fails_on_missing_required_file(self) -> None:
@@ -73,6 +74,19 @@ class ValidationChecklistTests(unittest.TestCase):
             self.assertFalse(result["pass"])
             self.assertEqual(len(result["missing"]), 1)
             self.assertIn(f"docs/{device}_cdd_outline.md", result["missing"][0])
+            self.assertEqual(result["failureReasons"][0]["code"], "MISSING_REQUIRED_OUTPUT")
+
+    def test_validation_fails_with_machine_reason_on_bad_checklist(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            out_dir = Path(td) / "out"
+            checklist = Path(td) / "bad_checklist.json"
+            checklist.write_text("{}", encoding="utf-8")
+
+            result = run_validation(out_dir, "tmp102", checklist)
+
+            self.assertFalse(result["pass"])
+            self.assertEqual(result["requiredCount"], 0)
+            self.assertEqual(result["failureReasons"][0]["code"], "CHECKLIST_PARSE_ERROR")
 
 
 if __name__ == "__main__":
