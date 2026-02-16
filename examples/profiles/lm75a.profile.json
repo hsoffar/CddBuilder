@@ -1,0 +1,38 @@
+{
+  "profileVersion": "v1.0",
+  "device": {
+    "family": "temperature-sensor",
+    "name": "LM75A",
+    "vendor": "NXP",
+    "datasheetRef": "LM75A Rev. 7",
+    "autosarBaseline": "4.4"
+  },
+  "bus": {
+    "protocol": "I2C",
+    "addressWidthBits": 7,
+    "registerWidthBits": 8,
+    "dataWidthBits": 16
+  },
+  "registers": [
+    { "name": "TEMP", "address": 0, "access": "R", "widthBits": 16 },
+    { "name": "TOS", "address": 3, "access": "RW", "widthBits": 16 },
+    { "name": "THYST", "address": 2, "access": "RW", "widthBits": 16 }
+  ],
+  "conversion": {
+    "rawBits": 11,
+    "signed": true,
+    "lsbMicroUnit": 125000,
+    "unit": "degC",
+    "shiftRightBits": 5
+  },
+  "policies": {
+    "pollingMs": 100,
+    "retryBackoffMs": 50,
+    "staleTimeoutMs": 500,
+    "qualityDefault": "INVALID"
+  },
+  "capabilities": {
+    "thresholds": true,
+    "alertPin": true
+  }
+}

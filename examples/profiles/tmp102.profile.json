@@ -1,0 +1,38 @@
+{
+  "profileVersion": "v1.0",
+  "device": {
+    "family": "temperature-sensor",
+    "name": "TMP102",
+    "vendor": "Texas Instruments",
+    "datasheetRef": "TMP102 SBOS397",
+    "autosarBaseline": "4.4"
+  },
+  "bus": {
+    "protocol": "I2C",
+    "addressWidthBits": 7,
+    "registerWidthBits": 8,
+    "dataWidthBits": 16
+  },
+  "registers": [
+    { "name": "TEMP", "address": 0, "access": "R", "widthBits": 16 },
+    { "name": "TLOW", "address": 2, "access": "RW", "widthBits": 16 },
+    { "name": "THIGH", "address": 3, "access": "RW", "widthBits": 16 }
+  ],
+  "conversion": {
+    "rawBits": 12,
+    "signed": true,
+    "lsbMicroUnit": 62500,
+    "unit": "degC",
+    "shiftRightBits": 4
+  },
+  "policies": {
+    "pollingMs": 100,
+    "retryBackoffMs": 50,
+    "staleTimeoutMs": 500,
+    "qualityDefault": "INVALID"
+  },
+  "capabilities": {
+    "thresholds": true,
+    "alertPin": true
+  }
+}
